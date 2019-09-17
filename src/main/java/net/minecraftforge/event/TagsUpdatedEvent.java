@@ -17,29 +17,30 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-package net.minecraftforge.common.ticket;
+package net.minecraftforge.event;
 
-public class MultiTicketManager<T> implements ITicketManager<T>
+import net.minecraft.tags.NetworkTagManager;
+import net.minecraftforge.eventbus.api.Event;
+
+/**
+ * Fired on the client when {@link NetworkTagManager} has all of its tags synced from the server to the client (just after a client has connected).
+ * Fired on the server when {@link NetworkTagManager} has read all tags from disk (during a data reload).
+ */
+public class TagsUpdatedEvent extends Event
 {
-    private final ITicketGetter<T>[] ticketManagers;
-
-    @SafeVarargs
-    public MultiTicketManager(ITicketGetter<T>... ticketManagers)
+    
+    private final NetworkTagManager manager;
+    
+    public TagsUpdatedEvent(NetworkTagManager manager)
     {
-        this.ticketManagers = ticketManagers;
+        this.manager = manager;
     }
 
-    @Override
-    public void add(SimpleTicket<T> ticket)
+    /**
+     * @return The network tag manager that has been updated with newly received tags.
+     */
+    public NetworkTagManager getTagManager()
     {
-        for (ITicketGetter<T> manager : ticketManagers)
-            manager.add(ticket);
-    }
-
-    @Override
-    public void remove(SimpleTicket<T> ticket)
-    {
-        for (ITicketGetter<T> manager : ticketManagers)
-            manager.remove(ticket);
+        return manager;
     }
 }

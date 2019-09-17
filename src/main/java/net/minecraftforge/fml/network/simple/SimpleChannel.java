@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 public class SimpleChannel
@@ -112,6 +113,14 @@ public class SimpleChannel
         context.getPacketDispatcher().sendPacket(instance.getChannelName(), toBuffer(msgToReply).getLeft());
     }
 
+    /**
+     * Build a new MessageBuilder. The type should implement {@link java.util.function.IntSupplier} if it is a login
+     * packet.
+     * @param type Type of message
+     * @param id id in the indexed codec
+     * @param <M> Type of type
+     * @return a MessageBuilder
+     */
     public <M> MessageBuilder<M> messageBuilder(final Class<M> type, int id) {
         return MessageBuilder.forType(this, type, id);
     }
@@ -173,12 +182,32 @@ public class SimpleChannel
             return this;
         }
 
+        public interface ToBooleanBiFunction<T, U> {
+            boolean applyAsBool(T first, U second);
+        }
+
+        /**
+         * Function returning a boolean "packet handled" indication, for simpler channel building.
+         * @param handler a handler
+         * @return this
+         */
+        public MessageBuilder<MSG> consumer(ToBooleanBiFunction<MSG, Supplier<NetworkEvent.Context>> handler) {
+            this.consumer = (msg, ctx) -> {
+                boolean handled = handler.applyAsBool(msg, ctx);
+                ctx.get().setPacketHandled(handled);
+            };
+            return this;
+        }
+
         public void add() {
             final IndexedMessageCodec.MessageHandler<MSG> message = this.channel.registerMessage(this.id, this.type, this.encoder, this.decoder, this.consumer);
             if (this.loginIndexSetter != null) {
                 message.setLoginIndexSetter(this.loginIndexSetter);
             }
             if (this.loginIndexGetter != null) {
+                if (!IntSupplier.class.isAssignableFrom(this.type)) {
+                    throw new IllegalArgumentException("Login packet type that does not supply an index as an IntSupplier");
+                }
                 message.setLoginIndexGetter(this.loginIndexGetter);
             }
             if (this.loginPacketGenerators != null) {
