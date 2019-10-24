@@ -24,6 +24,11 @@ import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
+/**
+ * IRecipe has been generified to use any object, this class is no longer necessary.
+ * TODO: Remove (1.15)
+ */
+@Deprecated
 public class RecipeWrapper implements IInventory {
 
     protected final IItemHandlerModifiable inv;

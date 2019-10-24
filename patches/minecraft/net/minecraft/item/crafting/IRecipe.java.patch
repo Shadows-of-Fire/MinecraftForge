@@ -1,6 +1,23 @@
 --- a/net/minecraft/item/crafting/IRecipe.java
 +++ b/net/minecraft/item/crafting/IRecipe.java
-@@ -21,9 +21,9 @@
+@@ -8,22 +8,22 @@
+ import net.minecraft.util.ResourceLocation;
+ import net.minecraft.world.World;
+ 
+-public interface IRecipe<C extends IInventory> {
+-   boolean func_77569_a(C p_77569_1_, World p_77569_2_);
++public interface IRecipe<C> {
++   boolean func_77569_a(C p_77569_1_, World p_77569_2_);
+ 
+-   ItemStack func_77572_b(C p_77572_1_);
++   ItemStack func_77572_b(C p_77572_1_);
+ 
+    boolean func_194133_a(int p_194133_1_, int p_194133_2_);
+ 
+    ItemStack func_77571_b();
+ 
+-   default NonNullList<ItemStack> func_179532_b(C p_179532_1_) {
++   default <C extends IInventory> NonNullList<ItemStack> func_179532_b(C p_179532_1_) {
        NonNullList<ItemStack> nonnulllist = NonNullList.func_191197_a(p_179532_1_.func_70302_i_(), ItemStack.field_190927_a);
  
        for(int i = 0; i < nonnulllist.size(); ++i) {
