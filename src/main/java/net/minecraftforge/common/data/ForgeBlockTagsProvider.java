@@ -57,7 +57,7 @@ public class ForgeBlockTagsProvider extends BlockTagsProvider
         getBuilder(CHESTS_TRAPPED).add(Blocks.TRAPPED_CHEST);
         getBuilder(CHESTS_WOODEN).add(Blocks.CHEST, Blocks.TRAPPED_CHEST);
         getBuilder(COBBLESTONE).add(Blocks.COBBLESTONE, Blocks.INFESTED_COBBLESTONE, Blocks.MOSSY_COBBLESTONE);
-        getBuilder(DIRT).add(Blocks.DIRT, Blocks.COARSE_DIRT, Blocks.PODZOL);
+        getBuilder(DIRT).add(Blocks.DIRT, Blocks.GRASS_BLOCK, Blocks.COARSE_DIRT, Blocks.PODZOL, Blocks.MYCELIUM);
         getBuilder(END_STONES).add(Blocks.END_STONE);
         getBuilder(FENCE_GATES).add(FENCE_GATES_WOODEN);
         getBuilder(FENCE_GATES_WOODEN).add(Blocks.OAK_FENCE_GATE, Blocks.SPRUCE_FENCE_GATE, Blocks.BIRCH_FENCE_GATE, Blocks.JUNGLE_FENCE_GATE, Blocks.ACACIA_FENCE_GATE, Blocks.DARK_OAK_FENCE_GATE);
@@ -96,6 +96,8 @@ public class ForgeBlockTagsProvider extends BlockTagsProvider
         getBuilder(STORAGE_BLOCKS_LAPIS).add(Blocks.LAPIS_BLOCK);
         getBuilder(STORAGE_BLOCKS_QUARTZ).add(Blocks.QUARTZ_BLOCK);
         getBuilder(STORAGE_BLOCKS_REDSTONE).add(Blocks.REDSTONE_BLOCK);
+        getBuilder(SUPPORTS_BEACON).add(Blocks.EMERALD_BLOCK, Blocks.GOLD_BLOCK, Blocks.DIAMOND_BLOCK, Blocks.IRON_BLOCK);
+        getBuilder(SUPPORTS_CONDUIT).add(Blocks.PRISMARINE, Blocks.PRISMARINE_BRICKS, Blocks.SEA_LANTERN, Blocks.DARK_PRISMARINE);
     }
 
     private void addColored(Consumer<Block> consumer, Tag<Block> group, String pattern)

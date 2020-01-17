@@ -1,6 +1,6 @@
 --- a/net/minecraft/entity/passive/FoxEntity.java
 +++ b/net/minecraft/entity/passive/FoxEntity.java
-@@ -767,7 +767,7 @@
+@@ -747,7 +747,7 @@
        }
  
        protected void func_220730_m() {

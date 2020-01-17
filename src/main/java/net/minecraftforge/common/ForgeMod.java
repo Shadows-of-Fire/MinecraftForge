@@ -19,6 +19,7 @@
 
 package net.minecraftforge.common;
 
+import net.minecraft.util.SoundEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.*;
@@ -28,6 +29,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLModIdMappingEvent;
 import net.minecraftforge.fml.event.server.FMLServerStartingEvent;
 import net.minecraftforge.fml.event.server.FMLServerStoppingEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.loading.progress.StartupMessageManager;
 import net.minecraftforge.server.command.ConfigCommand;
 import net.minecraftforge.server.command.ForgeCommand;
 import net.minecraftforge.versions.forge.ForgeVersion;
@@ -47,7 +49,7 @@ import net.minecraft.world.storage.WorldInfo;
 import net.minecraftforge.common.crafting.CompoundIngredient;
 import net.minecraftforge.common.crafting.ConditionalRecipe;
 import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.common.crafting.IngredientNBT;
+import net.minecraftforge.common.crafting.NBTIngredient;
 import net.minecraftforge.common.crafting.VanillaIngredientSerializer;
 import net.minecraftforge.common.crafting.conditions.AndCondition;
 import net.minecraftforge.common.crafting.conditions.FalseCondition;
@@ -70,21 +72,15 @@ import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 
+import java.util.Arrays;
+import java.util.List;
+
 @Mod("forge")
 public class ForgeMod implements WorldPersistenceHooks.WorldPersistenceHook
 {
     public static final String VERSION_CHECK_CAT = "version_checking";
     private static final Logger LOGGER = LogManager.getLogger();
     private static final Marker FORGEMOD = MarkerManager.getMarker("FORGEMOD");
-    public static int[] blendRanges = { 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34 };
-    public static boolean disableVersionCheck = false;
-    public static boolean forgeLightPipelineEnabled = true;
-    public static boolean zoomInMissingModelTextInGui = false;
-    public static boolean disableStairSlabCulling = false; // Also known as the "DontCullStairsBecauseIUseACrappyTexturePackThatBreaksBasicBlockShapesSoICantTrustBasicBlockCulling" flag
-    public static boolean alwaysSetupTerrainOffThread = false; // In WorldRenderer.setupTerrain, always force the chunk render updates to be queued to the thread
-    public static boolean logCascadingWorldGeneration = true; // see Chunk#logCascadingWorldGeneration()
-    public static boolean fixVanillaCascading = false; // There are various places in vanilla that cause cascading worldgen. Enabling this WILL change where blocks are placed to prevent this.
-                                                       // DO NOT contact Forge about worldgen not 'matching' vanilla if this flag is set.
 
     private static ForgeMod INSTANCE;
     public static ForgeMod getInstance()
@@ -105,6 +101,7 @@ public class ForgeMod implements WorldPersistenceHooks.WorldPersistenceHook
         modEventBus.register(this);
         MinecraftForge.EVENT_BUS.addListener(this::serverStarting);
         MinecraftForge.EVENT_BUS.addListener(this::serverStopping);
+        MinecraftForge.EVENT_BUS.addGenericListener(SoundEvent.class, this::missingSoundMapping);
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ForgeConfig.clientSpec);
         ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ForgeConfig.serverSpec);
         modEventBus.register(ForgeConfig.class);
@@ -123,10 +120,7 @@ public class ForgeMod implements WorldPersistenceHooks.WorldPersistenceHook
         MinecraftForge.EVENT_BUS.register(MinecraftForge.INTERNAL_HANDLER);
         MinecraftForge.EVENT_BUS.register(this);
 
-        if (!ForgeMod.disableVersionCheck)
-        {
-            VersionChecker.startVersionCheck();
-        }
+        VersionChecker.startVersionCheck();
 
         /*
          * We can't actually add any of these, because vanilla clients will choke on unknown argument types
@@ -188,6 +182,25 @@ public class ForgeMod implements WorldPersistenceHooks.WorldPersistenceHook
         }
     }
 
+    public void missingSoundMapping(RegistryEvent.MissingMappings<SoundEvent> event)
+    {
+        //Removed in 1.15, see https://minecraft.gamepedia.com/Parrot#History
+        List<String> removedSounds = Arrays.asList("entity.parrot.imitate.panda", "entity.parrot.imitate.zombie_pigman", "entity.parrot.imitate.enderman", "entity.parrot.imitate.polar_bear", "entity.parrot.imitate.wolf");
+        for (RegistryEvent.MissingMappings.Mapping<SoundEvent> mapping : event.getAllMappings())
+        {
+            ResourceLocation regName = mapping.key;
+            if (regName != null && regName.getNamespace().equals("minecraft"))
+            {
+                String path = regName.getPath();
+                if (removedSounds.stream().anyMatch(s -> s.equals(path)))
+                {
+                    LOGGER.info("Ignoring removed minecraft sound {}", regName);
+                    mapping.ignore();
+                }
+            }
+        }
+    }
+
     @SubscribeEvent //ModBus, can't use addListener due to nested genetics.
     public void registerRecipeSerialziers(RegistryEvent.Register<IRecipeSerializer<?>> event)
     {
@@ -201,7 +214,7 @@ public class ForgeMod implements WorldPersistenceHooks.WorldPersistenceHook
         CraftingHelper.register(TagEmptyCondition.Serializer.INSTANCE);
 
         CraftingHelper.register(new ResourceLocation("forge", "compound"), CompoundIngredient.Serializer.INSTANCE);
-        CraftingHelper.register(new ResourceLocation("forge", "nbt"), IngredientNBT.Serializer.INSTANCE);
+        CraftingHelper.register(new ResourceLocation("forge", "nbt"), NBTIngredient.Serializer.INSTANCE);
         CraftingHelper.register(new ResourceLocation("minecraft", "item"), VanillaIngredientSerializer.INSTANCE);
 
         event.getRegistry().register(new ConditionalRecipe.Serializer<IRecipe<?>>().setRegistryName(new ResourceLocation("forge", "conditional")));

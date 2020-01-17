@@ -19,14 +19,19 @@
 
 package net.minecraftforge.registries;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Supplier;
-
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.RegistryObject;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * Utility class to help with managing registry entries.
@@ -53,7 +58,8 @@ public class DeferredRegister<T extends IForgeRegistryEntry<T>>
 {
     private final IForgeRegistry<T> type;
     private final String modid;
-    private List<Supplier<? extends T>> entries = new ArrayList<>();
+    private final Map<RegistryObject<T>, Supplier<? extends T>> entries = new LinkedHashMap<>();
+    private final Set<RegistryObject<T>> entriesView = Collections.unmodifiableSet(entries.keySet());
 
     public DeferredRegister(IForgeRegistry<T> reg, String modid)
     {
@@ -68,11 +74,17 @@ public class DeferredRegister<T extends IForgeRegistryEntry<T>>
      * @param sup A factory for the new entry, it should return a new instance every time it is called.
      * @return A RegistryObject that will be updated with when the entries in the registry change.
      */
-    public <I extends T> RegistryObject<I> register(final String name, final Supplier<I> sup)
+    @SuppressWarnings("unchecked")
+    public <I extends T> RegistryObject<I> register(final String name, final Supplier<? extends I> sup)
     {
+        Objects.requireNonNull(name);
+        Objects.requireNonNull(sup);
         final ResourceLocation key = new ResourceLocation(modid, name);
-        entries.add(() -> sup.get().setRegistryName(key));
-        return RegistryObject.of(key.toString(), this.type);
+        RegistryObject<I> ret = RegistryObject.of(key, this.type);
+        if (entries.putIfAbsent((RegistryObject<T>) ret, () -> sup.get().setRegistryName(key)) != null) {
+            throw new IllegalArgumentException("Duplicate registration " + name);
+        }
+        return ret;
     }
 
     /**
@@ -86,13 +98,25 @@ public class DeferredRegister<T extends IForgeRegistryEntry<T>>
         bus.addListener(this::addEntries);
     }
 
+    /**
+     * @return The unmodifiable view of registered entries. Useful for bulk operations on all values.
+     */
+    public Collection<RegistryObject<T>> getEntries()
+    {
+        return entriesView;
+    }
+
     private void addEntries(RegistryEvent.Register<?> event)
     {
         if (event.getGenericType() == this.type.getRegistrySuperType())
         {
             @SuppressWarnings("unchecked")
             IForgeRegistry<T> reg = (IForgeRegistry<T>)event.getRegistry();
-            entries.stream().map(Supplier::get).forEach(reg::register);
+            for (Entry<RegistryObject<T>, Supplier<? extends T>> e : entries.entrySet())
+            {
+                reg.register(e.getValue().get());
+                e.getKey().updateReference(reg);
+            }
         }
     }
 }

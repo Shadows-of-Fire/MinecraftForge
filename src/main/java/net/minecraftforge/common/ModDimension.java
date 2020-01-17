@@ -23,6 +23,8 @@ import java.util.function.BiFunction;
 
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.world.World;
+import net.minecraft.world.biome.ColumnFuzzedBiomeMagnifier;
+import net.minecraft.world.biome.IBiomeMagnifier;
 import net.minecraft.world.dimension.Dimension;
 import net.minecraft.world.dimension.DimensionType;
 import net.minecraftforge.registries.ForgeRegistryEntry;
@@ -54,4 +56,24 @@ public abstract class ModDimension extends ForgeRegistryEntry<ModDimension>
      * @param network true when sent over the network, so you can only data needed by the client.
      */
     public void read(PacketBuffer buffer, boolean network){}
+
+    public IBiomeMagnifier getMagnifier() {
+        return ColumnFuzzedBiomeMagnifier.INSTANCE;
+    }
+
+    /**
+     * Convenience method for generating a ModDimension with a specific factory but no extra
+     * data handling behaviour. Extend ModDimension to override other methods.
+     *
+     * @param factory Factory for creating {@link Dimension} instances from DimType and World.
+     * @return A custom ModDimension with that factory.
+     */
+    public static ModDimension withFactory(BiFunction<World, DimensionType, ? extends Dimension> factory) {
+        return new ModDimension() {
+            @Override
+            public BiFunction<World, DimensionType, ? extends Dimension> getFactory() {
+                return factory;
+            }
+        };
+    }
 }

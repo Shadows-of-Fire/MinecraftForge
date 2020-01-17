@@ -1,9 +1,14 @@
 --- a/net/minecraft/client/renderer/ActiveRenderInfo.java
 +++ b/net/minecraft/client/renderer/ActiveRenderInfo.java
-@@ -172,4 +172,11 @@
+@@ -168,4 +168,16 @@
        this.field_216791_c = null;
        this.field_216789_a = false;
     }
++
++   public void setAnglesInternal(float yaw, float pitch) {
++      this.field_216798_j = yaw;
++      this.field_216797_i = pitch;
++   }
 +
 +   public net.minecraft.block.BlockState getBlockAtCamera() {
 +      if (!this.field_216789_a)

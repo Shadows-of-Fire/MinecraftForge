@@ -19,27 +19,23 @@
 
 package net.minecraftforge.fml.client;
 
-import com.google.common.base.Ascii;
-import com.google.common.base.CharMatcher;
 import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+
 import net.minecraft.client.MainWindow;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.math.MathHelper;
-import net.minecraftforge.fml.StartupMessageManager;
+import net.minecraftforge.fml.loading.progress.StartupMessageManager;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.stb.STBEasyFont;
-import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryUtil;
 
 import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.function.Consumer;
 
 public class EarlyLoaderGUI {
     private final MainWindow window;
@@ -47,9 +43,9 @@ public class EarlyLoaderGUI {
 
     public EarlyLoaderGUI(final MainWindow window) {
         this.window = window;
-        GlStateManager.clearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        GlStateManager.clear(GL11.GL_COLOR_BUFFER_BIT, Minecraft.IS_RUNNING_ON_MAC);
-        window.update(false);
+        RenderSystem.clearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        RenderSystem.clear(GL11.GL_COLOR_BUFFER_BIT, Minecraft.IS_RUNNING_ON_MAC);
+        window.update();
     }
 
     public void handleElsewhere() {
@@ -65,11 +61,10 @@ public class EarlyLoaderGUI {
         int guiScale = window.calcGuiScale(0, false);
         window.setGuiScale(guiScale);
 
-        GlStateManager.clearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        GlStateManager.clear(GL11.GL_COLOR_BUFFER_BIT, Minecraft.IS_RUNNING_ON_MAC);
-        window.loadGUIRenderMatrix(Minecraft.IS_RUNNING_ON_MAC);
+        RenderSystem.clearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        RenderSystem.clear(GL11.GL_COLOR_BUFFER_BIT, Minecraft.IS_RUNNING_ON_MAC);
         renderMessages();
-        window.update(false);
+        window.update();
     }
 
     private void renderMessages() {
@@ -100,20 +95,20 @@ public class EarlyLoaderGUI {
     }
 
     void renderMessage(final String message, final float[] colour, int line, float alpha) {
-        GlStateManager.enableClientState(GL11.GL_VERTEX_ARRAY);
+        GlStateManager.func_227770_y_(GL11.GL_VERTEX_ARRAY);
         ByteBuffer charBuffer = MemoryUtil.memAlloc(message.length() * 270);
         int quads = STBEasyFont.stb_easy_font_print(0, 0, message, null, charBuffer);
-        GlStateManager.vertexPointer(2, GL11.GL_FLOAT, 16, charBuffer);
+        GL14.glVertexPointer(2, GL11.GL_FLOAT, 16, charBuffer);
 
-        GlStateManager.enableBlend();
+        RenderSystem.enableBlend();
         GL14.glBlendColor(0,0,0, alpha);
-        GlStateManager.blendFunc(GlStateManager.SourceFactor.CONSTANT_ALPHA, GlStateManager.DestFactor.ONE_MINUS_CONSTANT_ALPHA);
-        GlStateManager.color3f(colour[0],colour[1],colour[2]);
-        GlStateManager.pushMatrix();
-        GlStateManager.translatef(10, line * 10, 0);
-        GlStateManager.scalef(1, 1, 0);
-        GlStateManager.drawArrays(GL11.GL_QUADS, 0, quads * 4);
-        GlStateManager.popMatrix();
+        RenderSystem.blendFunc(GlStateManager.SourceFactor.CONSTANT_ALPHA, GlStateManager.DestFactor.ONE_MINUS_CONSTANT_ALPHA);
+        RenderSystem.color3f(colour[0],colour[1],colour[2]);
+        RenderSystem.pushMatrix();
+        RenderSystem.translatef(10, line * 10, 0);
+        RenderSystem.scalef(1, 1, 0);
+        RenderSystem.drawArrays(GL11.GL_QUADS, 0, quads * 4);
+        RenderSystem.popMatrix();
 
         MemoryUtil.memFree(charBuffer);
     }

@@ -25,6 +25,8 @@ import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.mojang.blaze3d.matrix.MatrixStack;
+
 import net.minecraft.block.NetherPortalBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.util.ITooltipFlag;
@@ -33,7 +35,6 @@ import net.minecraft.entity.MobEntity;
 import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.EntityClassification;
-import net.minecraft.entity.merchant.IMerchant;
 import net.minecraft.entity.effect.LightningBoltEntity;
 import net.minecraft.entity.item.ItemEntity;
 import net.minecraft.entity.monster.ZombieEntity;
@@ -49,7 +50,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemUseContext;
 import net.minecraft.world.spawner.AbstractSpawner;
 import net.minecraft.util.ActionResult;
-import net.minecraft.util.DamageSource;
 import net.minecraft.util.ActionResultType;
 import net.minecraft.util.Direction;
 import net.minecraft.util.Hand;
@@ -70,12 +70,12 @@ import net.minecraft.world.World;
 import net.minecraft.world.server.ServerWorld;
 import net.minecraft.world.WorldSettings;
 import net.minecraft.world.biome.Biome;
-import net.minecraft.world.chunk.IChunk;
-import net.minecraft.world.gen.ChunkGenerator;
 import net.minecraft.world.storage.IPlayerFileData;
 import net.minecraft.world.storage.SaveHandler;
 import net.minecraft.world.storage.loot.LootTable;
 import net.minecraft.world.storage.loot.LootTableManager;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ClientChatEvent;
 import net.minecraftforge.client.event.ClientChatReceivedEvent;
 import net.minecraftforge.client.event.RenderBlockOverlayEvent;
@@ -128,6 +128,7 @@ import net.minecraftforge.event.world.ExplosionEvent;
 import net.minecraftforge.event.world.GetCollisionBoxesEvent;
 import net.minecraftforge.event.world.PistonEvent;
 import net.minecraftforge.event.world.SaplingGrowTreeEvent;
+import net.minecraftforge.event.world.SleepFinishedTimeEvent;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.Event.Result;
@@ -188,7 +189,7 @@ public class ForgeEventFactory
     {
         Result result = canEntitySpawn(entity, world, x, y, z, spawner, SpawnReason.SPAWNER);
         if (result == Result.DEFAULT)
-            return entity.canSpawn(world, SpawnReason.SPAWNER) || !entity.isNotColliding(world); // vanilla logic
+            return entity.canSpawn(world, SpawnReason.SPAWNER) && entity.isNotColliding(world); // vanilla logic (inverted)
         else
             return result == Result.ALLOW;
     }
@@ -424,7 +425,7 @@ public class ForgeEventFactory
 
         if(isCanceled)
         {
-            entityMounting.setPositionAndRotation(entityMounting.posX, entityMounting.posY, entityMounting.posZ, entityMounting.prevRotationYaw, entityMounting.prevRotationPitch);
+            entityMounting.setPositionAndRotation(entityMounting.func_226277_ct_(), entityMounting.func_226278_cu_(), entityMounting.func_226281_cx_(), entityMounting.prevRotationYaw, entityMounting.prevRotationPitch);
             return false;
         }
         else
@@ -443,9 +444,9 @@ public class ForgeEventFactory
         return event.getResultStatus();
     }
 
-    public static void onPlayerWakeup(PlayerEntity player, boolean wakeImmediately, boolean updateWorldFlag, boolean setSpawn)
+    public static void onPlayerWakeup(PlayerEntity player, boolean wakeImmediately, boolean updateWorldFlag)
     {
-        MinecraftForge.EVENT_BUS.post(new PlayerWakeUpEvent(player, wakeImmediately, updateWorldFlag, setSpawn));
+        MinecraftForge.EVENT_BUS.post(new PlayerWakeUpEvent(player, wakeImmediately, updateWorldFlag));
     }
 
     public static void onPlayerFall(PlayerEntity player, float distance, float multiplier)
@@ -526,19 +527,22 @@ public class ForgeEventFactory
         MinecraftForge.EVENT_BUS.post(new PlayerBrewedPotionEvent(player, stack));
     }
 
-    public static boolean renderFireOverlay(PlayerEntity player, float renderPartialTicks)
+    @OnlyIn(Dist.CLIENT)
+    public static boolean renderFireOverlay(PlayerEntity player, MatrixStack mat)
     {
-        return renderBlockOverlay(player, renderPartialTicks, OverlayType.FIRE, Blocks.FIRE.getDefaultState(), new BlockPos(player));
+        return renderBlockOverlay(player, mat, OverlayType.FIRE, Blocks.FIRE.getDefaultState(), new BlockPos(player));
     }
 
-    public static boolean renderWaterOverlay(PlayerEntity player, float renderPartialTicks)
+    @OnlyIn(Dist.CLIENT)
+    public static boolean renderWaterOverlay(PlayerEntity player, MatrixStack mat)
     {
-        return renderBlockOverlay(player, renderPartialTicks, OverlayType.WATER, Blocks.WATER.getDefaultState(), new BlockPos(player));
+        return renderBlockOverlay(player, mat, OverlayType.WATER, Blocks.WATER.getDefaultState(), new BlockPos(player));
     }
 
-    public static boolean renderBlockOverlay(PlayerEntity player, float renderPartialTicks, OverlayType type, BlockState block, BlockPos pos)
+    @OnlyIn(Dist.CLIENT)
+    public static boolean renderBlockOverlay(PlayerEntity player, MatrixStack mat, OverlayType type, BlockState block, BlockPos pos)
     {
-        return MinecraftForge.EVENT_BUS.post(new RenderBlockOverlayEvent(player, renderPartialTicks, type, block, pos));
+        return MinecraftForge.EVENT_BUS.post(new RenderBlockOverlayEvent(player, mat, type, block, pos));
     }
 
     @Nullable
@@ -698,5 +702,12 @@ public class ForgeEventFactory
     public static boolean onPistonMovePost(World world, BlockPos pos, Direction direction, boolean extending)
     {
         return MinecraftForge.EVENT_BUS.post(new PistonEvent.Post(world, pos, direction, extending ? PistonEvent.PistonMoveType.EXTEND : PistonEvent.PistonMoveType.RETRACT));
+    }
+
+    public static long onSleepFinished(ServerWorld world, long newTime, long minTime)
+    {
+        SleepFinishedTimeEvent event = new SleepFinishedTimeEvent(world, newTime, minTime);
+        MinecraftForge.EVENT_BUS.post(event);
+        return event.getNewTime();
     }
 }

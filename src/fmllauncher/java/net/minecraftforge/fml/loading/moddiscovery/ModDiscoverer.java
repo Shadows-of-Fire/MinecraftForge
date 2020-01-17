@@ -19,11 +19,16 @@
 
 package net.minecraftforge.fml.loading.moddiscovery;
 
+import cpw.mods.gross.Java9ClassLoaderUtil;
 import cpw.mods.modlauncher.Launcher;
 import cpw.mods.modlauncher.ServiceLoaderStreamUtils;
+import cpw.mods.modlauncher.api.LamdbaExceptionUtils;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.fml.loading.LoadingModList;
+import net.minecraftforge.fml.loading.ModDirTransformerDiscoverer;
 import net.minecraftforge.fml.loading.ModSorter;
+import net.minecraftforge.fml.loading.progress.StartupMessageManager;
 import net.minecraftforge.forgespi.Environment;
 import net.minecraftforge.forgespi.locating.IModFile;
 import net.minecraftforge.forgespi.locating.IModLocator;
@@ -33,6 +38,8 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -63,10 +70,19 @@ public class ModDiscoverer {
     private static final Logger LOGGER = LogManager.getLogger();
     private final ServiceLoader<IModLocator> locators;
     private final List<IModLocator> locatorList;
+    private final LocatorClassLoader locatorClassLoader;
 
     public ModDiscoverer(Map<String, ?> arguments) {
         Launcher.INSTANCE.environment().computePropertyIfAbsent(Environment.Keys.MODFOLDERFACTORY.get(), v->ModsFolderLocator::new);
-        locators = ServiceLoader.load(IModLocator.class);
+        Launcher.INSTANCE.environment().computePropertyIfAbsent(Environment.Keys.MODDIRECTORYFACTORY.get(), v->ModsFolderLocator::new);
+        Launcher.INSTANCE.environment().computePropertyIfAbsent(Environment.Keys.PROGRESSMESSAGE.get(), v->StartupMessageManager.locatorConsumer().orElseGet(()->s->{}));
+        locatorClassLoader = new LocatorClassLoader();
+        Launcher.INSTANCE.environment().computePropertyIfAbsent(FMLEnvironment.Keys.LOCATORCLASSLOADER.get(), v->locatorClassLoader);
+        ModDirTransformerDiscoverer.getExtraLocators()
+                .stream()
+                .map(LamdbaExceptionUtils.rethrowFunction(p->p.toUri().toURL()))
+                .forEach(locatorClassLoader::addURL);
+        locators = ServiceLoader.load(IModLocator.class, locatorClassLoader);
         locatorList = ServiceLoaderStreamUtils.toList(this.locators);
         locatorList.forEach(l->l.initArguments(arguments));
         locatorList.add(new MinecraftLocator());
@@ -75,6 +91,7 @@ public class ModDiscoverer {
 
     ModDiscoverer(List<IModLocator> locatorList) {
         this.locatorList = locatorList;
+        this.locatorClassLoader = null;
         this.locators = null;
     }
 
@@ -85,11 +102,12 @@ public class ModDiscoverer {
                 .map(IModLocator::scanMods)
                 .flatMap(Collection::stream)
                 .peek(mf -> LOGGER.debug(SCAN,"Found mod file {} of type {} with locator {}", mf.getFileName(), mf.getType(), mf.getLocator()))
+                .peek(mf -> StartupMessageManager.modLoaderConsumer().ifPresent(c->c.accept("Found mod file "+mf.getFileName()+" of type "+mf.getType())))
                 .map(ModFile.class::cast)
                 .collect(Collectors.groupingBy(IModFile::getType));
 
         FMLLoader.getLanguageLoadingProvider().addAdditionalLanguages(modFiles.get(IModFile.Type.LANGPROVIDER));
-        BackgroundScanHandler backgroundScanHandler = new BackgroundScanHandler();
+        BackgroundScanHandler backgroundScanHandler = new BackgroundScanHandler(modFiles);
         final List<ModFile> mods = modFiles.getOrDefault(IModFile.Type.MOD, Collections.emptyList());
         final List<ModFile> brokenFiles = new ArrayList<>();
         for (Iterator<ModFile> iterator = mods.iterator(); iterator.hasNext(); )
@@ -102,6 +120,7 @@ public class ModDiscoverer {
             }
         }
         LOGGER.debug(SCAN,"Found {} mod files with {} mods", mods::size, ()->mods.stream().mapToInt(mf -> mf.getModInfos().size()).sum());
+        StartupMessageManager.modLoaderConsumer().ifPresent(c->c.accept("Found "+mods.size()+" modfiles to load"));
         final LoadingModList loadingModList = ModSorter.sort(mods);
         loadingModList.addCoreMods();
         loadingModList.addAccessTransformers();
@@ -110,6 +129,16 @@ public class ModDiscoverer {
         return backgroundScanHandler;
     }
 
+    private static class LocatorClassLoader extends URLClassLoader {
+        LocatorClassLoader() {
+            super(Java9ClassLoaderUtil.getSystemClassPathURLs(), getSystemClassLoader());
+        }
+
+        @Override
+        protected void addURL(final URL url) {
+            super.addURL(url);
+        }
+    }
     private static class MinecraftLocator implements IModLocator {
         private final Path mcJar = FMLLoader.getMCPaths()[0];
         private final FileSystem fileSystem;
