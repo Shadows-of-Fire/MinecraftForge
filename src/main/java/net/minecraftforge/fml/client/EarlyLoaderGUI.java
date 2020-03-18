@@ -24,6 +24,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.MainWindow;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.AbstractGui;
 import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.fml.loading.progress.StartupMessageManager;
 import org.apache.commons.lang3.tuple.Pair;
@@ -45,7 +46,17 @@ public class EarlyLoaderGUI {
         this.window = window;
         RenderSystem.clearColor(1.0f, 1.0f, 1.0f, 1.0f);
         RenderSystem.clear(GL11.GL_COLOR_BUFFER_BIT, Minecraft.IS_RUNNING_ON_MAC);
-        window.update();
+        window.flipFrame();
+    }
+
+    private void setupMatrix() {
+        RenderSystem.clear(256, Minecraft.IS_RUNNING_ON_MAC);
+        RenderSystem.matrixMode(5889);
+        RenderSystem.loadIdentity();
+        RenderSystem.ortho(0.0D, window.getFramebufferWidth() / window.getGuiScaleFactor(), window.getFramebufferHeight() / window.getGuiScaleFactor(), 0.0D, 1000.0D, 3000.0D);
+        RenderSystem.matrixMode(5888);
+        RenderSystem.loadIdentity();
+        RenderSystem.translatef(0.0F, 0.0F, -2000.0F);
     }
 
     public void handleElsewhere() {
@@ -63,8 +74,11 @@ public class EarlyLoaderGUI {
 
         RenderSystem.clearColor(1.0f, 1.0f, 1.0f, 1.0f);
         RenderSystem.clear(GL11.GL_COLOR_BUFFER_BIT, Minecraft.IS_RUNNING_ON_MAC);
+        RenderSystem.pushMatrix();
+        setupMatrix();
         renderMessages();
-        window.update();
+        window.flipFrame();
+        RenderSystem.popMatrix();
     }
 
     private void renderMessages() {
@@ -95,12 +109,13 @@ public class EarlyLoaderGUI {
     }
 
     void renderMessage(final String message, final float[] colour, int line, float alpha) {
-        GlStateManager.func_227770_y_(GL11.GL_VERTEX_ARRAY);
+        GlStateManager.enableClientState(GL11.GL_VERTEX_ARRAY);
         ByteBuffer charBuffer = MemoryUtil.memAlloc(message.length() * 270);
         int quads = STBEasyFont.stb_easy_font_print(0, 0, message, null, charBuffer);
         GL14.glVertexPointer(2, GL11.GL_FLOAT, 16, charBuffer);
 
         RenderSystem.enableBlend();
+        RenderSystem.disableTexture();
         GL14.glBlendColor(0,0,0, alpha);
         RenderSystem.blendFunc(GlStateManager.SourceFactor.CONSTANT_ALPHA, GlStateManager.DestFactor.ONE_MINUS_CONSTANT_ALPHA);
         RenderSystem.color3f(colour[0],colour[1],colour[2]);
@@ -110,6 +125,7 @@ public class EarlyLoaderGUI {
         RenderSystem.drawArrays(GL11.GL_QUADS, 0, quads * 4);
         RenderSystem.popMatrix();
 
+        GlStateManager.disableClientState(GL11.GL_VERTEX_ARRAY);
         MemoryUtil.memFree(charBuffer);
     }
 }

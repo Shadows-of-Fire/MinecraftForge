@@ -26,7 +26,6 @@ import net.minecraft.client.renderer.TransformationMatrix;
 import net.minecraft.client.renderer.model.*;
 import net.minecraft.client.renderer.model.ItemCameraTransforms.TransformType;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.util.Direction;
 import net.minecraft.util.ResourceLocation;
@@ -85,13 +84,13 @@ public final class ItemLayerModel implements IModelGeometry<ItemLayerModel>
     public IBakedModel bake(IModelConfiguration owner, ModelBakery bakery, Function<Material, TextureAtlasSprite> spriteGetter, IModelTransform modelTransform, ItemOverrideList overrides, ResourceLocation modelLocation)
     {
         //TODO: Verify
-        TransformationMatrix transform = modelTransform.func_225615_b_();
+        TransformationMatrix transform = modelTransform.getRotation();
         ImmutableList<BakedQuad> quads = getQuadsForSprites(textures, transform, spriteGetter);
         TextureAtlasSprite particle = spriteGetter.apply(
                 owner.isTexturePresent("particle") ? owner.resolveTexture("particle") : textures.get(0)
         );
         ImmutableMap<TransformType, TransformationMatrix> map = PerspectiveMapWrapper.getTransforms(modelTransform);
-        return new BakedItemModel(quads, particle, map, overrides, transform.isIdentity());
+        return new BakedItemModel(quads, particle, map, overrides, transform.isIdentity(), owner.isSideLit());
     }
 
     public static ImmutableList<BakedQuad> getQuadsForSprites(List<Material> textures, TransformationMatrix transform, Function<Material, TextureAtlasSprite> spriteGetter)
@@ -397,9 +396,9 @@ public final class ItemLayerModel implements IModelGeometry<ItemLayerModel>
     private static void putVertex(IVertexConsumer consumer, Direction side, float x, float y, float z, float u, float v)
     {
         VertexFormat format = consumer.getVertexFormat();
-        for(int e = 0; e < format.func_227894_c_().size(); e++)
+        for(int e = 0; e < format.getElements().size(); e++)
         {
-            switch(format.func_227894_c_().get(e).getUsage())
+            switch(format.getElements().get(e).getUsage())
             {
             case POSITION:
                 consumer.put(e, x, y, z, 1f);
@@ -414,7 +413,7 @@ public final class ItemLayerModel implements IModelGeometry<ItemLayerModel>
                 consumer.put(e, offX, offY, offZ, 0f);
                 break;
             case UV:
-                if(format.func_227894_c_().get(e).getIndex() == 0)
+                if(format.getElements().get(e).getIndex() == 0)
                 {
                     consumer.put(e, u, v, 0f, 1f);
                     break;

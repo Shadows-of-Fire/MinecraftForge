@@ -32,7 +32,6 @@ import net.minecraft.client.renderer.model.*;
 import net.minecraft.client.renderer.model.ItemCameraTransforms.TransformType;
 import net.minecraft.client.renderer.texture.MissingTextureSprite;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.fluid.Fluids;
@@ -98,25 +97,25 @@ public final class DynamicBucketModel implements IModelGeometry<DynamicBucketMod
     public IBakedModel bake(IModelConfiguration owner, ModelBakery bakery, Function<Material, TextureAtlasSprite> spriteGetter, IModelTransform modelTransform, ItemOverrideList overrides, ResourceLocation modelLocation)
     {
         Material particleLocation = owner.resolveTexture("particle");
-        if (MissingTextureSprite.getLocation().equals(particleLocation.func_229313_b_()))
+        if (MissingTextureSprite.getLocation().equals(particleLocation.getTextureLocation()))
         {
             particleLocation = null;
         }
 
         Material baseLocation = owner.resolveTexture("base");
-        if (MissingTextureSprite.getLocation().equals(baseLocation.func_229313_b_()))
+        if (MissingTextureSprite.getLocation().equals(baseLocation.getTextureLocation()))
         {
             baseLocation = null;
         }
 
         Material fluidMaskLocation = owner.resolveTexture("fluid");
-        if (MissingTextureSprite.getLocation().equals(fluidMaskLocation.func_229313_b_()))
+        if (MissingTextureSprite.getLocation().equals(fluidMaskLocation.getTextureLocation()))
         {
             fluidMaskLocation = null;
         }
 
         Material coverLocation = owner.resolveTexture("cover");
-        if (!MissingTextureSprite.getLocation().equals(coverLocation.func_229313_b_()))
+        if (!MissingTextureSprite.getLocation().equals(coverLocation.getTextureLocation()))
         {
             // cover (the actual item around the other two)
             coverLocation = null;
@@ -136,7 +135,7 @@ public final class DynamicBucketModel implements IModelGeometry<DynamicBucketMod
             modelTransform = new ModelTransformComposition(modelTransform, new SimpleModelTransform(new TransformationMatrix(null, new Quaternion(0, 0, 1, 0), null, null)));
         }
 
-        TransformationMatrix transform = modelTransform.func_225615_b_();
+        TransformationMatrix transform = modelTransform.getRotation();
 
         TextureAtlasSprite fluidSprite = fluid != Fluids.EMPTY ? spriteGetter.apply(ForgeHooksClient.getBlockMaterial(fluid.getAttributes().getStillTexture())) : null;
 
@@ -185,7 +184,7 @@ public final class DynamicBucketModel implements IModelGeometry<DynamicBucketMod
             }
         }
 
-        return new BakedModel(bakery, owner, this, builder.build(), particleSprite, Maps.immutableEnumMap(transformMap), Maps.newHashMap(), transform.isIdentity(), modelTransform);
+        return new BakedModel(bakery, owner, this, builder.build(), particleSprite, Maps.immutableEnumMap(transformMap), Maps.newHashMap(), transform.isIdentity(), modelTransform, owner.isSideLit());
     }
 
     @Override
@@ -297,6 +296,7 @@ public final class DynamicBucketModel implements IModelGeometry<DynamicBucketMod
         private final DynamicBucketModel parent;
         private final Map<String, IBakedModel> cache; // contains all the baked models since they'll never change
         private final IModelTransform originalTransform;
+        private final boolean isSideLit;
 
         BakedModel(ModelBakery bakery,
                    IModelConfiguration owner, DynamicBucketModel parent,
@@ -305,13 +305,14 @@ public final class DynamicBucketModel implements IModelGeometry<DynamicBucketMod
                    ImmutableMap<TransformType, TransformationMatrix> transforms,
                    Map<String, IBakedModel> cache,
                    boolean untransformed,
-                   IModelTransform originalTransform)
+                   IModelTransform originalTransform, boolean isSideLit)
         {
-            super(quads, particle, transforms, new ContainedFluidOverrideHandler(bakery), untransformed);
+            super(quads, particle, transforms, new ContainedFluidOverrideHandler(bakery), untransformed, isSideLit);
             this.owner = owner;
             this.parent = parent;
             this.cache = cache;
             this.originalTransform = originalTransform;
+            this.isSideLit = isSideLit;
         }
     }
 

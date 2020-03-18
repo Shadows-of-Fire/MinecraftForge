@@ -72,7 +72,7 @@ public final class MultiLayerModel implements IModelGeometry<MultiLayerModel>
         Set<Material> materials = Sets.newHashSet();
         materials.add(owner.resolveTexture("particle"));
         for (IUnbakedModel m : models.values())
-            materials.addAll(m.func_225614_a_(modelGetter, missingTextureErrors));
+            materials.addAll(m.getTextures(modelGetter, missingTextureErrors));
         return materials;
     }
 
@@ -81,7 +81,7 @@ public final class MultiLayerModel implements IModelGeometry<MultiLayerModel>
         ImmutableMap.Builder<RenderType, IBakedModel> builder = ImmutableMap.builder();
         for(Map.Entry<RenderType, IUnbakedModel> entry : models.entrySet())
         {
-            builder.put(entry.getKey(), entry.getValue().func_225613_a_(bakery, spriteGetter, modelTransform, modelLocation));
+            builder.put(entry.getKey(), entry.getValue().bakeModel(bakery, spriteGetter, modelTransform, modelLocation));
         }
         return builder.build();
     }
@@ -93,9 +93,9 @@ public final class MultiLayerModel implements IModelGeometry<MultiLayerModel>
 
         return new MultiLayerBakedModel(
                 owner.useSmoothLighting(), owner.isShadedInGui(),
-                spriteGetter.apply(owner.resolveTexture("particle")), overrides,
+                owner.isSideLit(), spriteGetter.apply(owner.resolveTexture("particle")), overrides,
                 buildModels(models, modelTransform, bakery, spriteGetter, modelLocation),
-                missing.func_225613_a_(bakery, spriteGetter, modelTransform, modelLocation),
+                missing.bakeModel(bakery, spriteGetter, modelTransform, modelLocation),
                 PerspectiveMapWrapper.getTransforms(new ModelTransformComposition(owner.getCombinedTransform(), modelTransform)));
     }
 
@@ -105,14 +105,16 @@ public final class MultiLayerModel implements IModelGeometry<MultiLayerModel>
         private final ImmutableMap<TransformType, TransformationMatrix> cameraTransforms;
         protected final boolean ambientOcclusion;
         protected final boolean gui3d;
+        protected final boolean isSideLit;
         protected final TextureAtlasSprite particle;
         protected final ItemOverrideList overrides;
         private final IBakedModel missing;
 
         public MultiLayerBakedModel(
-                boolean ambientOcclusion, boolean isGui3d, TextureAtlasSprite particle, ItemOverrideList overrides,
+                boolean ambientOcclusion, boolean isGui3d, boolean isSideLit, TextureAtlasSprite particle, ItemOverrideList overrides,
                 ImmutableMap<RenderType, IBakedModel> models, IBakedModel missing, ImmutableMap<TransformType, TransformationMatrix> cameraTransforms)
         {
+            this.isSideLit = isSideLit;
             this.models = models;
             this.cameraTransforms = cameraTransforms;
             this.missing = missing;
@@ -165,6 +167,12 @@ public final class MultiLayerModel implements IModelGeometry<MultiLayerModel>
         }
 
         @Override
+        public boolean func_230044_c_()
+        {
+            return isSideLit;
+        }
+
+        @Override
         public boolean isBuiltInRenderer()
         {
             return false;
@@ -212,7 +220,7 @@ public final class MultiLayerModel implements IModelGeometry<MultiLayerModel>
         {
             ImmutableMap.Builder<RenderType, IUnbakedModel> builder = ImmutableMap.builder();
             JsonObject layersObject = JSONUtils.getJsonObject(modelContents, "layers");
-            for(RenderType layer : RenderType.func_228661_n_()) // block layers
+            for(RenderType layer : RenderType.getBlockRenderTypes()) // block layers
             {
                 String layerName = layer.toString(); // mc overrides toString to return the ID for the layer
                 if(layersObject.has(layerName))
